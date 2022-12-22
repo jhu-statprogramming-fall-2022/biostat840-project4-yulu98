@@ -1,0 +1,342 @@
+---
+title: "Project4"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r lib, include=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+```{r global, include=FALSE, message=FALSE, warning=FALSE}
+library(here)
+if(!file.exists(here("data","spotify_songs.RDS"))){
+  tuesdata <- tidytuesdayR::tt_load('2020-01-21') 
+  tuesdata <- tidytuesdayR::tt_load(2020, week = 4)
+
+  spotify_songs <- tuesdata$spotify_songs
+  saveRDS(tuesdata$spotify_songs, file = here("data","spotify_songs.RDS"))
+}
+```
+
+```{r, include=FALSE, eval=TRUE, message=FALSE}
+spotify_songs <- readRDS(here("data","spotify_songs.RDS"))
+```
+
+# About
+
+### Purpose of the dashboard
+
+This dashboard gives an overall view of the Spotify data set and tells story about what factors affect the popularity of songs.
+
+### Data Origin
+
+The origin of the data comes from [TidyTuesday](https://github.com/rfordatascience/tidytuesday/tree/master/data/2020/2020-01-21).
+
+::: column-margin
+Tidy Tuesday provides interesting date sets every Tuesday. (https://github.com/rfordatascience/tidytuesday)
+:::
+
+
+# Data
+
+## Column {.sidebar}
+
+The data this week comes from Spotify via the spotifyr package. Charlie Thompson, Josiah Parry, Donal Phipps, and Tom Wolff authored this package to make it easier to get either your own data or general metadata arounds songs from Spotify's API. Make sure to check out the spotifyr package website to see how you can collect your own data!
+
+Kaylin Pavlik had a recent blogpost using the audio features to explore and classify songs. She used the spotifyr package to collect about 5000 songs from 6 main categories (EDM, Latin, Pop, R&B, Rap, & Rock).
+
+
+## Column
+
+### Data Details
+
+```{r, echo=FALSE}
+# Create the DT table first
+DT_table <- spotify_songs %>%
+  dplyr::select(track_name,
+                track_artist,
+                track_popularity,
+                track_album_release_date) %>%
+  rename("Album Name" = track_name) %>%
+  rename("Artist" = track_artist) %>%
+  rename("Popularity" = track_popularity) %>%
+  rename("Release Date" = track_album_release_date)
+
+```
+
+```{r, echo=FALSE}
+DT::renderDataTable({
+  DT::datatable(DT_table,
+                caption = htmltools::tags$caption(
+                  style = 'caption-side: top; text-align: Left;',
+                  htmltools::withTags(
+                    div(HTML('Click here to be redirected to a page where this data can be downloaded.')))),
+                options = list(autoWidth = TRUE,
+                               pageLength = 10,
+                               scroller = TRUE,
+                               scrollY = '450px'))
+})
+```
+
+
+# Data Dictionary
+
+|variable                 |class     |description |
+|:---|:---|:-----------|
+|track_id                 |character | Song unique ID|
+|track_name               |character | Song Name|
+|track_artist             |character | Song Artist|
+|track_popularity         |double    | Song Popularity (0-100) where higher is better |
+|track_album_id           |character | Album unique ID|
+|track_album_name         |character | Song album name |
+|track_album_release_date |character | Date when album released |
+|playlist_name            |character | Name of playlist |
+|playlist_id              |character | Playlist ID|
+|playlist_genre           |character | Playlist genre |
+|playlist_subgenre        |character | Playlist subgenre|
+|danceability             |double    | Danceability describes how suitable a track is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity. A value of 0.0 is least danceable and 1.0 is most danceable. |
+|energy                   |double    | Energy is a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity. Typically, energetic tracks feel fast, loud, and noisy. For example, death metal has high energy, while a Bach prelude scores low on the scale. Perceptual features contributing to this attribute include dynamic range, perceived loudness, timbre, onset rate, and general entropy. |
+|key                      |double    | The estimated overall key of the track. Integers map to pitches using standard Pitch Class notation . E.g. 0 = C, 1 = C♯/D♭, 2 = D, and so on. If no key was detected, the value is -1. |
+|loudness                 |double    | The overall loudness of a track in decibels (dB). Loudness values are averaged across the entire track and are useful for comparing relative loudness of tracks. Loudness is the quality of a sound that is the primary psychological correlate of physical strength (amplitude). Values typical range between -60 and 0 db.|
+|mode                     |double    | Mode indicates the modality (major or minor) of a track, the type of scale from which its melodic content is derived. Major is represented by 1 and minor is 0.|
+|speechiness              |double    | Speechiness detects the presence of spoken words in a track. The more exclusively speech-like the recording (e.g. talk show, audio book, poetry), the closer to 1.0 the attribute value. Values above 0.66 describe tracks that are probably made entirely of spoken words. Values between 0.33 and 0.66 describe tracks that may contain both music and speech, either in sections or layered, including such cases as rap music. Values below 0.33 most likely represent music and other non-speech-like tracks. |
+|acousticness             |double    | A confidence measure from 0.0 to 1.0 of whether the track is acoustic. 1.0 represents high confidence the track is acoustic.|
+|instrumentalness         |double    | Predicts whether a track contains no vocals. “Ooh” and “aah” sounds are treated as instrumental in this context. Rap or spoken word tracks are clearly “vocal”. The closer the instrumentalness value is to 1.0, the greater likelihood the track contains no vocal content. Values above 0.5 are intended to represent instrumental tracks, but confidence is higher as the value approaches 1.0. |
+|liveness                 |double    | Detects the presence of an audience in the recording. Higher liveness values represent an increased probability that the track was performed live. A value above 0.8 provides strong likelihood that the track is live. |
+|valence                  |double    | A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track. Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry). |
+|tempo                    |double    | The overall estimated tempo of a track in beats per minute (BPM). In musical terminology, tempo is the speed or pace of a given piece and derives directly from the average beat duration. |
+|duration_ms              |double    | Duration of song in milliseconds |
+
+# Overall Distribution of Popularity 
+
+## Column {.sidebar}
+
+Plot the distribution of popularity for all the albums
+
+```{r}
+selectInput("n_breaks", label = "Number of bins:",
+            choices = c(10, 20, 35, 50), selected = 20)
+
+sliderInput("bw_adjust", label = "Bandwidth adjustment:",
+            min = 0.2, max = 2, value = 1, step = 0.2)
+```
+
+## Column
+
+### Spotify Albums Popularity
+
+```{r}
+renderPlot({
+  hist(spotify_songs$track_popularity, probability = TRUE, breaks = as.numeric(input$n_breaks),
+       xlab = "Popularity", main = "Spotify Albums")
+  
+  dens <- density(spotify_songs$track_popularity, adjust = input$bw_adjust)
+  lines(dens, col = "blue")
+})
+```
+# Artist Specific Distribution of Popularity
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+To see how popularity varies with different factors.
+
+```{r}
+selectInput("variable", "Variable:",
+                  c("Danceability" = "danceability",
+                    "Energy" = "energy",
+                    "Loudness" = "loudness",
+                    "Speechiness" = "speechiness"))
+```
+
+Column
+-----------------------------------------------------------------------
+
+### Popularity against different factors
+
+```{r}
+formulaText <- reactive({
+    paste("track_popularity ~", input$variable)
+  })
+
+  # Generate a plot of the requested variable against mpg ----
+  # and only exclude outliers if requested
+renderPlot({
+    plot(as.formula(formulaText()),
+            data = spotify_songs,
+            col = "#75AADB", pch = 19, main=formulaText())
+  lmm <- lm(as.formula(formulaText()), data = spotify_songs)
+  abline(lmm, col='red', lwd=2)
+  })
+
+```
+# Analysis
+
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+library(tidyverse)
+library(dplyr)
+library(lubridate) 
+library(ggplot2)
+library(RColorBrewer)
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+data <- spotify_songs %>%
+  drop_na() %>%
+  select(-track_id, -track_album_id, -track_album_name, -playlist_name,
+         -playlist_id, -playlist_genre, -playlist_subgenre) %>%
+  mutate(year = year(ymd(track_album_release_date))) %>%
+  filter(year >= 2014) %>%
+  filter(track_artist == "Martin Garrix")
+```
+
+#### Question
+
+What impact the popularity of a song for Martin Garrix songs?
+
+
+## Data visulization and analysis
+
+
+
+### Distribution of the popularity vs released time
+
+
+
+```{r, echo=FALSE}
+data %>% 
+  ggplot(aes(x = track_album_release_date, y = track_popularity)) + 
+  geom_point() +
+  labs(title = "Popularity vs released date",
+       subtitle = "Martin Garrix's songs have low popularity (<20) mostlt before the first half year of 2016 and one time at 2019",
+       caption = "Data source: TidyTuesday") + 
+  labs(x = "Released Date",
+       y = "Popularity") +
+    theme(plot.title = element_text(size = 20),
+      plot.subtitle = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      axis.text.x = element_text(size = 8, angle = 50, hjust = 0.8),
+      axis.text.y = element_text(size = 8))
+
+```
+
+### Yearly average of the popularity of Martin Garrix's songs
+
+
+```{r, echo=FALSE}
+str_dat <- data |> split(data$year)
+str_dat |> map(.f = ~mean(.x$track_popularity))
+```
+
+The average popularity of Martin Garrix's songs increase across years.
+
+
+### Distribution of popularity of Martin Garrix's songs for each year
+
+
+```{r, echo=FALSE}
+data %>% 
+  mutate(year = factor(year)) %>%
+  ggplot(aes(x = year, y = track_popularity)) +
+  geom_violin() +
+  labs(title = "Popularity vs released year",
+       subtitle = "The popularity of Martin Garrix's songs has a trend of growth across years",
+       caption = "Data source: TidyTuesday") + 
+  labs(x = "Released Year",
+       y = "Popularity") +
+    theme(plot.title = element_text(size = 20),
+      plot.subtitle = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      axis.text.x = element_text(size = 8, angle = 50, hjust = 0.8),
+      axis.text.y = element_text(size = 8))
+```
+
+## Column 2
+
+### Populartiy over different features
+
+
+
+```{r, warnings = FALSE, message=FALSE, echo=FALSE}
+data %>% 
+  pivot_longer(-c(track_album_release_date, track_artist,
+                  track_name, track_popularity, tempo, duration_ms,
+                  key, year, loudness), 
+               names_to = "feature", values_to = "value") %>%
+  ggplot(aes(x = value, y = track_popularity)) + 
+  geom_point() + 
+  geom_smooth() + 
+  facet_wrap(~ feature, ncol = 4) + 
+  labs(title = "Populartiy over different features",
+       subtitle = "Acousticness, danceability and liveness have impact on the popularity of Martin Garrix's songs",
+       caption = "Data source: TidyTuesday") + 
+  labs(x = "Different Features",
+       y = "Popularity") +
+    theme(plot.title = element_text(size = 20),
+      plot.subtitle = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      axis.text.x = element_text(size = 8, angle = 50, hjust = 0.8),
+      axis.text.y = element_text(size = 8))
+```
+
+### Populartiy over different features for different years using RColorBewer
+
+```{r, warnings = FALSE, message=FALSE, echo=FALSE}
+data %>% 
+  pivot_longer(-c(track_album_release_date, track_artist,
+                  track_name, track_popularity, tempo, duration_ms,
+                  key, year, loudness), 
+               names_to = "feature", values_to = "value") %>%
+  ggplot(aes(x = value, y = track_popularity, color = feature)) + 
+  geom_point() + 
+  geom_smooth() +  
+  scale_colour_brewer(palette = "PiYG") + 
+  labs(title = "Populartiy over different features",
+       subtitle = "Acousticness, danceability and liveness have impact on the popularity of Martin Garrix's songs",
+       caption = "Data source: TidyTuesday") + 
+  labs(x = "Different Features",
+       y = "Popularity") +
+    theme(plot.title = element_text(size = 20),
+      plot.subtitle = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      axis.text.x = element_text(size = 8, angle = 50, hjust = 0.8),
+      axis.text.y = element_text(size = 8))
+
+display.brewer.pal(8, "PiYG")
+```
+
+
+
+
+
+# Reference
+
+**The Data**
+
+The data comes from Spotify via the [spotifyr](https://www.rcharlie.com/spotifyr/) package. Charlie Thompson, Josiah Parry, Donal Phipps, and Tom Wolff authored this package to make it easier to get either your own data or general metadata arounds songs from Spotify's API. 
+
+**Packages**
+
+I used [tidyverse](https://www.tidyverse.org/), [dplyr](https://dplyr.tidyverse.org/), [lubridate](https://lubridate.tidyverse.org/) to wrangle the data.
+
+
+
+
+# Video
+
+<iframe
+    width="640"
+    height="480"
+    src="https://www.youtube.com/embed/YHoqiX7tAW0"
+    frameborder="0"
+    allow="autoplay; encrypted-media"
+    allowfullscreen
+>
+</iframe>
